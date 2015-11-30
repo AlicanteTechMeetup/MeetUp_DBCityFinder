@@ -10,11 +10,76 @@ You can find a full working and more complete app in [DBCityFinder repository](h
 
 [Plunkr](http://plnkr.co/edit) is a great webpage to do simple apps in a collaborative way, and share it with the people. So let's show how it's done:
 
-1. Open [Plunkr](http://plnkr.co/edit) and create an app from AngularJS1.4 template
-2. We want Routing, so let's install **angular-route**
-3. Create the main view `main_view.html`
-4. Create the main controller `MainCtrl.js`
-5. To avoid having a large controller, we can use a Factory `MainSvc.js`. They are a kind of Services, perfect to sort our code out!
+* Open [Plunkr](http://plnkr.co/edit) and create an app from AngularJS1.4 template
+* Add `bootstrap-css` package to have a simple css scaffolding
+* Create the main **view** `main_view.html`
+* Create the main **[controller](https://code.angularjs.org/1.4.8/docs/guide/controller)** `MainCtrl.js`. Then separate the controller code on `app.js` file.
+* To avoid having a large controller, we can use a **[factory](https://code.angularjs.org/1.4.8/docs/guide/services)** `MainSvc.js`. They're [Singleton](https://en.wikipedia.org/wiki/Singleton_pattern) instances perfect for sharing code between controllers and sorting out!
+
+*Follow up the links to get more info*
 
 ### 2. Route the app
+
+Even though it is not necessary for this app, we'll do a basic routing in order to show how to use it.
+
+* Install **[angular-route](https://docs.angularjs.org/api/ngRoute)**
+* As all external packages, add module dependency on `app.js` module declaration.
+
+```javascript
+var app = angular.module('plunker', ['ngRoute']);
+```
+
+* Let's use `$routeProvider` to route our application. We need a `config` function
+
+```javascript
+app.config(['$routeProvider', function($routeProvider) {
+  $routeProvider.
+    when('/', {
+      templateUrl: 'main_view.html',
+      controller: 'MainCtrl'
+    }).
+    when('/about', {
+      templateUrl: 'about.html'
+    }).
+    otherwise({
+      redirectTo: '/'
+    });
+}]);
+```
+
+* Add a dummy `about.html` filled with some html just to check routing is working
+* We need now a **Navigation bar**. **ng-include** directive comes in handy for this. It allows to load an external `html` file. Let's create a **`navbar.html`** with the following code (**notice** href starts with "#/"=:
+
+```html
+<nav class="navbar navbar-inverse">
+  <div class="container">
+    
+    <ul class="nav navbar-nav">
+      <li class="active"><a href="#/">Home</a></li>
+      <li><a href="#/about">About</a></li>
+    </ul>
+    
+  </div>
+</nav>
+```
+* Now add the `ng-include` and `ng-view` directives onto `index.html` file. **Notice** the use of **single quotes** inside _ng-include_:
+
+```html
+<body>
+  <header ng-include="'navbar.html'"></header>
+  <main class="container" ng-view></main>
+</body>
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
