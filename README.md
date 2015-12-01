@@ -71,8 +71,35 @@ app.config(['$routeProvider', function($routeProvider) {
 </body>
 ```
 
+### 3. Let's add some filters!
+
+We want to search for cities according to certain filters. We'll have 3 filters:
+
+* **City**: cities which name contains *City*
+* **Population**: population ranges
+* **Map area**: cities inside a rectangular area
+* They can be used or not
+* They can be used combined
+
+#### 3.1 Prepare our DBPedia Query system
 
 
+
+#### 3.2. City filter
+
+* Define a `search` object in your controller $scope.
+* In your view, define a `section` tag for the filters
+* Place the city filter by inserting an `input` tag with a `ng-model="search.city"` attribute set.
+
+```html
+<section class="filters row">
+  
+  <div class="col-xs-4">
+    <input type="text" placeholder="City..." ng-model="search.city">
+  </div>
+  
+</section>
+```
 
 
 
