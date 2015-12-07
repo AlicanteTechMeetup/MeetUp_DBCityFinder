@@ -14,7 +14,7 @@ You can find a full working and more complete app in [DBCityFinder repository](h
 * Add `bootstrap-css` package to have a simple css scaffolding
 * Create the main **view** `main_view.html`
 * Create the main **[controller](https://code.angularjs.org/1.4.8/docs/guide/controller)** `MainCtrl.js`. Then separate the controller code on `app.js` file.
-* To avoid having a large controller, we can use a **[factory](https://code.angularjs.org/1.4.8/docs/guide/services)** `MainSvc.js`. They're [Singleton](https://en.wikipedia.org/wiki/Singleton_pattern) instances perfect for sharing code between controllers and sorting out!
+
 
 *Follow up the links to get more info*
 
@@ -83,7 +83,131 @@ We want to search for cities according to certain filters. We'll have 3 filters:
 
 #### 3.1 Prepare our DBPedia Query system
 
+We can write our Query system within a [**Factory Service**](https://docs.angularjs.org/guide/services). It will allow us to place all the Query logic in there.
 
+Here we see the Query we need. Maybe it looks a bit ugly, but the structure is quite simple, separated on **3 sections**:
+* **First**: We declare the type (dbo:Settlement) and variables we need (name, abstract...)
+* **Second**: We set the filters we want to apply. Note there is a **pattern sequence (`__-__`)** that we will use to replace it for our filter value. We must build this part dinamically.
+* **Third**: This is just to force multilingual fields to be returned only in English. Otherwise we'd get one result for each language.
+
+Final query string will be **First + Second + Third** section. First and Third part are constant, so we can place them into variables already.
+
+
+```sparql
+SELECT DISTINCT * WHERE { 
+	?city rdf:type dbo:Settlement;
+	dbo:wikiPageID ?id;
+	rdfs:label ?name;
+	dbo:abstract ?abstract;
+	dbo:populationTotal ?population;
+	dbo:country ?country;
+	geo:lat ?latitude;
+	geo:long ?longitude. 
+	?country rdfs:label ?country_name. 
+	
+	FILTER ( ?population > __-__1 and ?population < __-__2 ).
+	FILTER regex(?name, "__-__", "i").
+	FILTER ( ?latitude < __-__1 and ?latitude > __-__2 and ?longitude < __-__3 and ?longitude > __-__4  ).
+
+	FILTER langMatches(lang(?abstract), "EN"). 
+	FILTER langMatches(lang(?country_name), "EN"). 
+	FILTER langMatches(lang(?name), "EN")
+} LIMIT 200
+```
+Then we just need to build it and perform the query call.
+
+
+##### Steps
+
+* Create `QuerySvc.js` and add it to `index.html`
+* Add the **Query** and **Filter** variables. Also, DBPedia needs some http headers to be set, we do it on `requestConfig` variable:
+
+```javascript
+app.factory('QuerySvc', function($http) {
+  
+  // - Private 
+    // Query vars
+    var searchQueryIni = 'SELECT DISTINCT * WHERE { ?city rdf:type dbo:City; dbo:wikiPageID ?id; rdfs:label ?name; dbo:abstract ?abstract; dbo:populationTotal ?population; dbo:country ?country; geo:lat ?latitude; geo:long ?longitude. ?country rdfs:label ?country_name. ';
+    var searchQueryEnd = 'FILTER langMatches(lang(?abstract), "__language"). FILTER langMatches(lang(?country_name), "__language"). FILTER langMatches(lang(?name), "__language")} LIMIT 200';
+
+	// Filter vars
+    var filterPopulation = 'FILTER ( ?population > __-__ and ?population < __-__ ). ';
+    var filterCity = 'FILTER regex(?name, "__-__", "i"). ';
+    var filterRectangle = 'FILTER ( ?latitude < __-__1 and ?latitude > __-__2 and ?longitude < __-__3 and ?longitude > __-__4  ). ';
+  
+  	// Headers for $http request
+    var requestConfig = {
+      headers:  {
+        'Content-type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/sparql-results+json'
+      },
+      params: {
+        'query': null,
+        'format': 'json'
+      }
+    };
+
+  
+  // - Public
+  var api = {};
+  
+  return api
+});
+```
+* Add function to **Build the query** (in private part, after vars)
+
+```javascript
+   // params is the queryObject set on controller
+   function BuildFilter(params){
+
+      var filter = '';
+
+      for (var property in params)
+        if (params.hasOwnProperty(property)) {
+          if(property == 'city' && params[property].trim() != "")
+            filter += filterCity.replace('__-__', params[property].trim());
+          else if (property == 'population' && params[property]){
+            var aux = filterPopulation.replace('__-__1', params[property].min);
+            filter += aux.replace('__-__2', params[property].max);
+          }
+          else if (property == 'rectangle'){
+            filter += filterRectangle.replace('__-__1', params[property].ne.latitude);
+            filter = filter.replace('__-__2', params[property].sw.latitude);
+            filter = filter.replace('__-__3', params[property].ne.longitude);
+            filter = filter.replace('__-__4', params[property].sw.longitude);
+          }
+        }
+
+      return filter;
+    }
+```
+
+* Finally, add the public method **Search**, to perform the actual query:
+
+```javascript
+api.Search = function(params){
+    var filter = BuildFilter(params);
+    requestConfig.params.query  = searchQueryIni + filter + searchQueryFin;
+
+    $http.get("http://dbpedia.org/sparql", requestConfig).success(function (data) {
+      ProcessData(data);
+      $rootScope.$broadcast('QuerySvc:dataLoaded'); // Let controller now it is finished
+    }).error(function () {
+      $rootScope.$broadcast('QuerySvc:dataLoaded');
+    });
+  }
+};
+```
+
+* In `.success` callback, we call `ProcessData(data)`. Let's create that function and tidy up the json returned. For now, it will just attach the data to `api.results` so then it can be accessed from the controller.
+
+```javascript
+function InsertData(data){
+  self.results = data.results.bindings;
+}
+```
+
+The Service is ready now.
 
 #### 3.2. City filter
 
@@ -95,11 +219,14 @@ We want to search for cities according to certain filters. We'll have 3 filters:
 <section class="filters row">
   
   <div class="col-xs-4">
-    <input type="text" placeholder="City..." ng-model="search.city">
+    <input type="text" class="form-control" placeholder="City..." ng-model="search.city">
   </div>
   
 </section>
 ```
+
+* Search button and function!!!!!!!!!!!
+* QuerySvc:dataLoaded handle in controller
 
 
 
