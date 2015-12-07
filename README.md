@@ -94,7 +94,14 @@ Final query string will be **First + Second + Third** section. First and Third p
 
 
 ```sparql
-SELECT DISTINCT * WHERE { 
+SELECT DISTINCT ?city
+  (SAMPLE(?name) as ?name)
+  (SAMPLE(?abstract) as ?abstract)
+  (SAMPLE(?country_name) as ?country_name)
+  (MAX(?population) as ?population)
+  (MAX(?latitude) as ?latitude)
+  (MAX(?longitude) as ?longitude)
+WHERE { 
 	?city rdf:type dbo:Settlement;
 	dbo:wikiPageID ?id;
 	rdfs:label ?name;
@@ -123,12 +130,12 @@ Then we just need to build it and perform the query call.
 * Add the **Query** and **Filter** variables. Also, DBPedia needs some http headers to be set, we do it on `requestConfig` variable:
 
 ```javascript
-app.factory('QuerySvc', function($http) {
+app.factory('QuerySvc', function($http, $rootScope) {
   
   // - Private 
     // Query vars
-    var searchQueryIni = 'SELECT DISTINCT * WHERE { ?city rdf:type dbo:City; dbo:wikiPageID ?id; rdfs:label ?name; dbo:abstract ?abstract; dbo:populationTotal ?population; dbo:country ?country; geo:lat ?latitude; geo:long ?longitude. ?country rdfs:label ?country_name. ';
-    var searchQueryEnd = 'FILTER langMatches(lang(?abstract), "__language"). FILTER langMatches(lang(?country_name), "__language"). FILTER langMatches(lang(?name), "__language")} LIMIT 200';
+    var searchQueryIni = 'SELECT DISTINCT ?city (SAMPLE(?name) as ?name) (SAMPLE(?abstract) as ?abstract) (SAMPLE(?country_name) as ?country_name) (MAX(?population) as ?population) (MAX(?latitude) as ?latitude) (MAX(?longitude) as ?longitude) WHERE { ?city rdf:type dbo:City; rdfs:label ?name; dbo:abstract ?abstract; dbo:populationTotal ?population; dbo:country ?country; geo:lat ?latitude; geo:long ?longitude. ?country rdfs:label ?country_name.';
+    var searchQueryEnd = 'FILTER langMatches(lang(?abstract), "EN"). FILTER langMatches(lang(?country_name), "EN"). FILTER langMatches(lang(?name), "EN")} LIMIT 200';
 
 	// Filter vars
     var filterPopulation = 'FILTER ( ?population > __-__ and ?population < __-__ ). ';
@@ -199,11 +206,13 @@ api.Search = function(params){
 };
 ```
 
+Notice the line `$rootScope.$broadcast('QuerySvc:dataLoaded');`. This will allow us to let the controller now the data is received and processed by sending an event.
+
 * In `.success` callback, we call `ProcessData(data)`. Let's create that function and tidy up the json returned. For now, it will just attach the data to `api.results` so then it can be accessed from the controller.
 
 ```javascript
-function InsertData(data){
-  self.results = data.results.bindings;
+function ProcessData(data){
+  api.results = data.results.bindings;
 }
 ```
 
@@ -213,20 +222,76 @@ The Service is ready now.
 
 * Define a `search` object in your controller $scope.
 * In your view, define a `section` tag for the filters
-* Place the city filter by inserting an `input` tag with a `ng-model="search.city"` attribute set.
+* Place the city filter by inserting an `input` tag with a `ng-model="search.city"` attribute set. Also let's set the **Submit button** and add `ng-click="Search()"`. 
 
 ```html
-<section class="filters row">
-  
+<section class="filters row form-group">
   <div class="col-xs-4">
     <input type="text" class="form-control" placeholder="City..." ng-model="search.city">
   </div>
-  
+</section>
+
+
+<section class="submit row form-group text-center">
+    <button class="btn btn-primary btn-lg" ng-click="Search()">Search</button>
 </section>
 ```
 
-* Search button and function!!!!!!!!!!!
-* QuerySvc:dataLoaded handle in controller
+* Implement **Search** function on the controller. Remember that we already created the `QuerySvc.js` with a `Search(params)` function, so let's make use of it. 
+ * First, inject `QuerySvc` into the controller
+ * Create the `Search` function. It must call `Search` Service function and pass it `search` object.
+
+```javascript
+$scope.Search = function(){
+  var params = angular.copy($scope.search);
+  QuerySvc.Search(params);
+}
+``` 
+
+* We need to handle `QuerySvc:dataLoaded` event on the controller, so let's add the next code within the controller:
+
+```javascript
+$scope.Search = function(){
+  var params = angular.copy($scope.search);
+  QuerySvc.Search(params);
+}
+``` 
+
+* Finally, we just need to visualice the results. **`ng-repeat`** comes in handy for the purpose. Also we want to show it only when results are available, use `ng-show="results && results.length"` for that. Let's go to `main_view.html` and add the following code:
+
+```html
+<section class="results" ng-show="results && results.length">
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>City</th>
+        <th>Country</th>
+        <th>Population</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr ng-repeat="city in results" ng-click="ShowAbstract(city.abstract.value)">
+        <td>{{ city.name.value }}</td>
+        <td>{{ city.country_name.value }}</td>
+        <td>{{ city.population.value }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+```
+
+* We are showing the abstract in the `ng-click="ShowAbstract(city.abstract.value)"`. Let's go to the controller and add the function:
+
+```javascript
+$scope.ShowAbstract = function(abstract){
+  alert(abstract);
+}
+```
+
+#### 3.2. Population filter
+
+
 
 
 
