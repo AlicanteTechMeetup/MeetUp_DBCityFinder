@@ -295,7 +295,7 @@ $scope.ShowAbstract = function(abstract){
 
 Most of previous steps were generic for all the filters we want to add. This won't take too much for that reason.
 
-* Take a look at [how to work with <select> in AngularJS](https://docs.angularjs.org/api/ng/directive/select#using-select-with-ngoptions-and-setting-a-default-value). We are using `ng-options`, since it is more simple, flexible and fast. Let's add another filter in the *filter section* on **main_view.html**:
+* Take a look at [how to work with select tag in AngularJS](https://docs.angularjs.org/api/ng/directive/select#using-select-with-ngoptions-and-setting-a-default-value). We are using `ng-options`, since it is more simple, flexible and fast. Let's add another filter in the *filter section* on **main_view.html**:
 
 ```html
   <div class="col-xs-6">
