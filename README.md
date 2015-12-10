@@ -50,7 +50,7 @@ app.config(['$routeProvider', function($routeProvider) {
 ```
 
 * Add a dummy `about.html` filled with some html just to check routing is working
-* We need now a **Navigation bar**. **ng-include** directive comes in handy for this. It allows to load an external `html` file. Let's create a **`navbar.html`** with the following code (**notice** href starts with "#/"=:
+* We need now a **Navigation bar**. **ng-include** directive comes in handy for this. It allows to load an external `html` file. Let's create a **`navbar.html`** with the following code (**notice** href starts with "#/"):
 
 ```html
 <nav class="navbar navbar-inverse">
@@ -196,27 +196,18 @@ app.factory('QuerySvc', function($http, $rootScope) {
 ```javascript
 api.Search = function(params){
     var filter = BuildFilter(params);
-    requestConfig.params.query  = searchQueryIni + filter + searchQueryFin;
+    requestConfig.params.query  = searchQueryIni + filter + searchQueryEnd;
 
     $http.get("http://dbpedia.org/sparql", requestConfig).success(function (data) {
-      ProcessData(data);
+      api.results = data.results.bindings;
       $rootScope.$broadcast('QuerySvc:dataLoaded'); // Let controller now it is finished
     }).error(function () {
       $rootScope.$broadcast('QuerySvc:dataLoaded');
     });
   }
-};
 ```
 
 Notice the line `$rootScope.$broadcast('QuerySvc:dataLoaded');`. This will allow us to let the controller now the data is received and processed by sending an event.
-
-* In `.success` callback, we call `ProcessData(data)`. Let's create that function and tidy up the json returned. For now, it will just attach the data to `api.results` so then it can be accessed from the controller.
-
-```javascript
-function ProcessData(data){
-  api.results = data.results.bindings;
-}
-```
 
 The Service is ready now.
 
@@ -228,7 +219,7 @@ The Service is ready now.
 
 ```html
 <section class="filters row form-group">
-  <div class="col-xs-4">
+  <div class="col-xs-6">
     <input type="text" class="form-control" placeholder="City..." ng-model="search.city">
   </div>
 </section>
@@ -253,10 +244,9 @@ $scope.Search = function(){
 * We need to handle `QuerySvc:dataLoaded` event on the controller, so let's add the next code within the controller:
 
 ```javascript
-$scope.Search = function(){
-  var params = angular.copy($scope.search);
-  QuerySvc.Search(params);
-}
+  $scope.$on('QuerySvc:dataLoaded', function(){
+    $scope.results = QuerySvc.results;
+  })
 ``` 
 
 * Finally, we just need to visualice the results. **`ng-repeat`** comes in handy for the purpose. Also we want to show it only when results are available, use `ng-show="results && results.length"` for that. Let's go to `main_view.html` and add the following code:
